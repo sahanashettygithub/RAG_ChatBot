@@ -1,0 +1,5 @@
+Sahana Shetty is a software developer and data professional with experience in building AI-powered applications, document search systems, and data-driven products.
+
+She enjoys working with Python, machine learning, LangChain, and cloud-based workflows. She is interested in building useful tools that help people work with information more effectively.
+
+This sample file demonstrates how the RAG chatbot can answer questions from uploaded content.

@@ -1,0 +1,11 @@
+python-dotenv
+streamlit
+pypdf
+langchain
+langchain-community
+langchain-google-genai
+langchain-groq
+langchain-text-splitters
+langchain-core
+langgraph
+pytest
