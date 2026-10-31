@@ -1,7 +1,16 @@
+
 from __future__ import annotations
 
 import hashlib
 import os
+import sys
+from pathlib import Path
+
+# Add project root to Python path
+ROOT = Path(__file__).resolve().parent.parent
+
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import streamlit as st
 
@@ -13,97 +22,205 @@ from app.rag_chatbot import (
     save_uploaded_file,
 )
 
-st.set_page_config(page_title="Document Q&A Assistant", page_icon="📄")
+# Streamlit configuration
+st.set_page_config(
+    page_title="Document Q&A Assistant",
+    page_icon="📄",
+)
 
+# Load environment variables
 load_environment()
+
 AGENT_RUNTIME_VERSION = 1
 
 st.title("📄 Document Q&A Assistant")
 st.caption("Upload a PDF, TXT, or MD file and ask questions about it.")
 
+# Initialize chat history
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
+# Sidebar: Document upload
 with st.sidebar:
     st.header("Upload a document")
-    uploaded_file = st.file_uploader("Choose a file", type=["pdf", "txt", "md"])
+
+    uploaded_file = st.file_uploader(
+        "Choose a file",
+        type=["pdf", "txt", "md"],
+    )
 
     if uploaded_file is not None:
         file_path = save_uploaded_file(uploaded_file)
-        file_digest = hashlib.sha256(uploaded_file.getvalue()).hexdigest()
+
+        file_digest = hashlib.sha256(
+            uploaded_file.getvalue()
+        ).hexdigest()
+
         document_key = f"{file_path}:{file_digest}"
+
         st.success(f"Loaded: {uploaded_file.name}")
+
     else:
         file_path = resolve_document_path("data/sample.txt")
         document_key = str(file_path)
+
         st.info("Using the sample document for a quick demo.")
 
-    clear_chat = st.button("Clear chat", use_container_width=True)
+    clear_chat = st.button(
+        "Clear chat",
+        use_container_width=True,
+    )
 
+# Clear conversation
 if clear_chat:
     st.session_state.chat_history = []
 
+# Check API keys
 if not os.getenv("GOOGLE_API_KEY") or not os.getenv("GROQ_API_KEY"):
-    st.warning("Add GOOGLE_API_KEY and GROQ_API_KEY to your .env file before using the app.")
+    st.warning(
+        "Add GOOGLE_API_KEY and GROQ_API_KEY "
+        "to your .env file or Streamlit Cloud Secrets."
+    )
     st.stop()
 
-document_changed = st.session_state.get("active_document_key") != document_key
+# Check whether the selected document has changed
+document_changed = (
+    st.session_state.get("active_document_key") != document_key
+)
+
 agent_is_stale = (
     not callable(st.session_state.get("agent"))
-    or st.session_state.get("agent_runtime_version") != AGENT_RUNTIME_VERSION
+    or st.session_state.get("agent_runtime_version")
+    != AGENT_RUNTIME_VERSION
 )
 
 if document_changed:
     st.session_state.chat_history = []
 
+# Build vector store and initialize agent
 if document_changed or agent_is_stale:
     try:
         with st.spinner("Indexing the document..."):
+
             if (
                 document_changed
                 or "vector_store" not in st.session_state
-                or st.session_state.get("vector_store_document_key") != document_key
+                or st.session_state.get("vector_store_document_key")
+                != document_key
             ):
-                st.session_state.vector_store = build_vector_store(file_path)
-                st.session_state.vector_store_document_key = document_key
+                st.session_state.vector_store = build_vector_store(
+                    file_path
+                )
 
-            st.session_state.agent = create_rag_agent(st.session_state.vector_store)
-            st.session_state.agent_runtime_version = AGENT_RUNTIME_VERSION
+                st.session_state.vector_store_document_key = (
+                    document_key
+                )
+
+            st.session_state.agent = create_rag_agent(
+                st.session_state.vector_store
+            )
+
+            st.session_state.agent_runtime_version = (
+                AGENT_RUNTIME_VERSION
+            )
+
             st.session_state.active_document_key = document_key
-    except Exception:
-        st.error("The document could not be indexed. Check that it is readable and try again.")
+
+    except Exception as error:
+        st.error(
+            f"Document indexing failed: {type(error).__name__}: "
+            f"{str(error).splitlines()[0][:300]}"
+        )
         st.stop()
 
+# Display previous chat messages
 for message in st.session_state.chat_history:
+
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-prompt = st.chat_input("Ask a question about the uploaded document")
+# Chat input
+prompt = st.chat_input(
+    "Ask a question about the uploaded document"
+)
+
 if prompt:
+
     question = prompt.strip()
+
     if question:
-        st.session_state.chat_history.append({"role": "user", "content": question})
+
+        st.session_state.chat_history.append(
+            {
+                "role": "user",
+                "content": question,
+            }
+        )
+
         with st.chat_message("user"):
             st.write(question)
 
         with st.chat_message("assistant"):
+
             with st.spinner("Thinking..."):
+
                 try:
                     answer = st.session_state.agent(
                         question,
                         st.session_state.chat_history[:-1],
                     )
+
                 except Exception as error:
-                    answer = "I couldn't complete that response. Please check the API connection and try again."
-                    error_detail = str(error).strip().splitlines()[0][:400]
+
+                    answer = (
+                        "I couldn't complete that response. "
+                        "Please check the API connection and try again."
+                    )
+
+                    error_detail = (
+                        str(error).strip().splitlines()[0][:400]
+                        if str(error).strip()
+                        else ""
+                    )
+
+                    # Redact API keys and secrets
                     for name, value in os.environ.items():
-                        if value and len(value) >= 8 and any(
-                            marker in name.upper() for marker in ("KEY", "TOKEN", "SECRET")
+
+                        if (
+                            value
+                            and len(value) >= 8
+                            and any(
+                                marker in name.upper()
+                                for marker in (
+                                    "KEY",
+                                    "TOKEN",
+                                    "SECRET",
+                                )
+                            )
                         ):
-                            error_detail = error_detail.replace(value, "[REDACTED]")
+                            error_detail = error_detail.replace(
+                                value,
+                                "[REDACTED]",
+                            )
+
                     if error_detail:
-                        st.error(f"Request failed ({type(error).__name__}): {error_detail}")
+                        st.error(
+                            f"Request failed "
+                            f"({type(error).__name__}): "
+                            f"{error_detail}"
+                        )
                     else:
-                        st.error(f"Request failed ({type(error).__name__}).")
+                        st.error(
+                            f"Request failed "
+                            f"({type(error).__name__})."
+                        )
+
             st.write(answer)
-        st.session_state.chat_history.append({"role": "assistant", "content": answer})
+
+        # Save assistant response
+        st.session_state.chat_history.append(
+            {
+                "role": "assistant",
+                "content": answer,
+            }
+        )
