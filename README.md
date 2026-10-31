@@ -1,43 +1,37 @@
-# RAG Document Chatbot
+# 📄 Document Q&A Assistant
 
-This project lets a user upload a PDF, TXT, or MD document and ask questions about it using a retrieval-augmented generation (RAG) workflow.
+A RAG (Retrieval-Augmented Generation) chatbot that lets you upload a document and ask questions about it. Answers come from the content of your file, not from the model's general knowledge.
 
-## Features
+**🔗 Live Demo:** [https://ragchatbot-6thkh8qyv6fhej3vwzrfwm.streamlit.app/](https://ragchatbot-6thkh8qyv6fhej3vwzrfwm.streamlit.app/)
 
-- Upload a document from the browser
-- Extract content from PDF or text files
-- Split documents into chunks
-- Generate embeddings with Google Gemini
-- Retrieve relevant context using similarity search
-- Answer questions with a Groq LLM
+## What It Does
 
-## Setup
+Upload a PDF, TXT, or MD file, then ask questions in a chat interface. For example, upload a resume and ask "What is the person's name?" or "What are their skills?"
 
-1. Create a virtual environment and install dependencies:
+## How It Works
 
-   ```bash
-   python -m venv .venv
-   .venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
+1. The uploaded document is read and split into small chunks.
+2. Each chunk is converted into an embedding and stored in a vector database.
+3. When you ask a question, the most relevant chunks are retrieved.
+4. The question and retrieved chunks are sent to an LLM, which writes the answer.
 
-2. Copy `.env.example` to `.env` and add your API keys.
+## Tech Stack
 
-   ```bash
-   copy .env.example .env
-   ```
+Python, Streamlit, LangChain, ChromaDB, and an LLM API (Gemini / Groq / OpenAI).
 
-3. Start the app:
+## Run Locally
 
-   ```bash
-   streamlit run app/streamlit_app.py
-   ```
+```bash
+git clone https://github.com/<your-username>/<your-repo-name>.git
+cd <your-repo-name>
+pip install -r requirements.txt
+streamlit run app.py
+```
 
-4. Upload a document in the sidebar and ask questions.
+Add your API key in a `.env` file before running:
 
-## Files
+```env
+GOOGLE_API_KEY=your_api_key
+```
 
-- `app/rag_chatbot.py` - core document loading and retrieval logic
-- `app/streamlit_app.py` - user interface
-- `data/sample.txt` - demo document
-- `requirements.txt` - dependencies
+<img width="1632" height="927" alt="image" src="https://github.com/user-attachments/assets/8be99ce8-d4bc-4966-91b5-6c868b94ef05" />
